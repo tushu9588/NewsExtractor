@@ -1,89 +1,57 @@
-﻿using System;
+﻿using NewsExtractor;
+using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading.Tasks;
-using System.Xml.Linq;
-using MySql.Data.MySqlClient;
 
 namespace EconomicTimesNews
 {
-    public class NewsItem
-    {
-        public string Url { get; set; }
-        public string Title { get; set; }
-        public DateTime PublicationDate { get; set; }
-    }
-
     class Program
     {
         static async Task Main(string[] args)
         {
-            string sitemapUrl = "https://m.economictimes.com/sitemap/today";
-            var newsList = await GetNewsItemsAsync(sitemapUrl);
-
-            foreach (var news in newsList)
+            try
             {
-                Console.WriteLine($"📌 {news.Title}");
-                Console.WriteLine($"🔗 {news.Url}");
-                Console.WriteLine($"🗓️ {news.PublicationDate}");
-                Console.WriteLine(new string('-', 50));
-            }
+                Console.WriteLine("🔄 Fetching today’s news...");
+                var todayNews = await NewsFetcher.GetNewsItemsAsync("https://m.economictimes.com/sitemap/today");
 
-            SaveNewsToDatabase(newsList);
-            Console.WriteLine("✅ News saved to database.");
-        }
+                Console.WriteLine("🔄 Fetching yesterday’s news...");
+                var yesterdayNews = await NewsFetcher.GetNewsItemsAsync("https://m.economictimes.com/sitemap/yesterday");
 
-        public static async Task<List<NewsItem>> GetNewsItemsAsync(string sitemapUrl)
-        {
-            List<NewsItem> newsList = new List<NewsItem>();
-            HttpClient client = new HttpClient();
-            string response = await client.GetStringAsync(sitemapUrl);
-            XDocument xmlDoc = XDocument.Parse(response);
+                // Combine both today's and yesterday's news
+                var allNews = new List<NewsItem>();
+                allNews.AddRange(todayNews);
+                allNews.AddRange(yesterdayNews);
 
-            XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
-            XNamespace newsNs = "http://www.google.com/schemas/sitemap-news/0.9";
+                Console.WriteLine($"\n📋 Total News Fetched: {allNews.Count}\n");
 
-            foreach (var item in xmlDoc.Descendants(ns + "url"))
-            {
-                string url = item.Element(ns + "loc")?.Value;
-                string title = item.Element(newsNs + "news")?.Element(newsNs + "title")?.Value;
-                string pubDateStr = item.Element(newsNs + "news")?.Element(newsNs + "publication_date")?.Value;
-
-                if (DateTime.TryParse(pubDateStr, out DateTime pubDate))
+                // Display each news item in the console
+                foreach (var news in allNews)
                 {
-                    if (pubDate.Date == DateTime.Today || pubDate.Date == DateTime.Today.AddDays(-1))
-                    {
-                        newsList.Add(new NewsItem
-                        {
-                            Url = url,
-                            Title = title,
-                            PublicationDate = pubDate
-                        });
-                    }
+                    Console.WriteLine($"📰 Title        : {news.Title}");
+                    Console.WriteLine($"🔗 URL          : {news.Url}");
+                    Console.WriteLine($"🗓️ Published On : {news.PublicationDate:dd MMM yyyy HH:mm}");
+                    Console.WriteLine(new string('-', 70));
                 }
-            }
 
-            return newsList;
-        }
-
-        static void SaveNewsToDatabase(List<NewsItem> newsList)
-        {
-            string connStr = "server=n1nlmysql45plsk.secureserver.net;uid=tushar_TempDB;pwd=tushar_TempDB;database=tushar_TempDB;";
-            using (MySqlConnection conn = new MySqlConnection(connStr))
-            {
-                conn.Open();
-                foreach (var news in newsList)
+                if (allNews.Count == 0)
                 {
-                    string query = "INSERT INTO News (Url, Title, PublicationDate) VALUES (@Url, @Title, @PublicationDate)";
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Url", news.Url);
-                        cmd.Parameters.AddWithValue("@Title", news.Title);
-                        cmd.Parameters.AddWithValue("@PublicationDate", news.PublicationDate);
-                        cmd.ExecuteNonQuery();
-                    }
+                    Console.WriteLine("⚠️ No news to save.");
+                    return;
                 }
-                conn.Close();
+
+                // Define the MySQL connection string
+                string connStr = "server=n1nlmysql45plsk.secureserver.net;uid=tushar_TempDB;pwd=tushar_TempDB;database=tushar_TempDB;";
+
+                // Save news to the database
+                var dbSaver = new NewsDatabaseSaver(connStr);
+                dbSaver.SaveNewsToDatabase(allNews);
+
+                Console.WriteLine("\n✅ News saved to MySQL database successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("\n❌ An unexpected error occurred:");
+                Console.WriteLine(ex.Message);
             }
         }
     }
