@@ -1,6 +1,7 @@
 ﻿using NewsExtractor;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Threading.Tasks;
 
 namespace EconomicTimesNews
@@ -24,23 +25,14 @@ namespace EconomicTimesNews
 
                 Console.WriteLine($"\n📋 Total News Fetched: {allNews.Count}\n");
 
-                // Display each news item in the console
-                foreach (var news in allNews)
-                {
-                    Console.WriteLine($"📰 Title        : {news.Title}");
-                    Console.WriteLine($"🔗 URL          : {news.Url}");
-                    Console.WriteLine($"🗓️ Published On : {news.PublicationDate:dd MMM yyyy HH:mm}");
-                    Console.WriteLine(new string('-', 70));
-                }
-
                 if (allNews.Count == 0)
                 {
                     Console.WriteLine("⚠️ No news to save.");
                     return;
                 }
 
-                // Define the MySQL connection string
-                string connStr = "server=n1nlmysql45plsk.secureserver.net;uid=tushar_TempDB;pwd=tushar_TempDB;database=tushar_TempDB;";
+                // Read connection string from App.config
+                string connStr = ConfigurationManager.ConnectionStrings["MyDbConnection"].ConnectionString;
 
                 // Save news to the database
                 var dbSaver = new NewsDatabaseSaver(connStr);
