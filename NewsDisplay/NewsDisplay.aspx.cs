@@ -1,64 +1,72 @@
 ﻿using System;
-using System.Data;
-using System.Linq;
-using MySql.Data.MySqlClient;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Web.Script.Serialization;
 
 namespace NewsDisplay
 {
     public partial class NewsDisplay : System.Web.UI.Page
     {
-        protected void Page_Load(object sender, EventArgs e)
+        protected override void OnLoad(EventArgs e)
         {
+            base.OnLoad(e);
+
             if (!IsPostBack)
             {
-                // Set default to today's date
-                string today = DateTime.Today.ToString("yyyy-MM-dd");
-                StartDateTextBox.Text = today;
-                EndDateTextBox.Text = today;
-
-                LoadNewsFromDatabase(DateTime.Today, DateTime.Today, string.Empty);
+                // Fire and forget async call for breaking news
+                _ = LoadBreakingNews();
             }
         }
 
-        protected void FetchNewsButton_Click(object sender, EventArgs e)
+        private async Task LoadBreakingNews()
         {
-            if (DateTime.TryParse(StartDateTextBox.Text, out DateTime startDate) &&
-                DateTime.TryParse(EndDateTextBox.Text, out DateTime endDate))
+            try
             {
-                string keyword = SearchTextBox.Text.Trim();
-                // Include full end date range
-                endDate = endDate.AddDays(1).AddSeconds(-1);
-
-                LoadNewsFromDatabase(startDate, endDate, keyword);
-            }
-        }
-
-        private void LoadNewsFromDatabase(DateTime startDate, DateTime endDate, string keyword)
-        {
-            string connStr = "server=n1nlmysql45plsk.secureserver.net;uid=tushar_TempDB;pwd=tushar_TempDB;database=tushar_TempDB;";
-            string query = @"SELECT DISTINCT Title, Url, PublicationDate
-                             FROM News 
-                             WHERE PublicationDate BETWEEN @startDate AND @endDate
-                             AND (@keyword = '' OR Title LIKE CONCAT('%', @keyword, '%') OR Url LIKE CONCAT('%', @keyword, '%'))
-                             ORDER BY PublicationDate DESC";
-
-            using (MySqlConnection conn = new MySqlConnection(connStr))
-            {
-                using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                using (var httpClient = new HttpClient())
                 {
-                    cmd.Parameters.AddWithValue("@startDate", startDate);
-                    cmd.Parameters.AddWithValue("@endDate", endDate);
-                    cmd.Parameters.AddWithValue("@keyword", keyword);
+                    // Fetch JS-wrapped JSON string
+                    string jsText = await httpClient.GetStringAsync("https://economictimes.indiatimes.com/etstatic/breakingnews/etjson_bnews.html");
 
-                    using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                    // Extract JSON array from JS code
+                    int startIndex = jsText.IndexOf("[");
+                    int endIndex = jsText.LastIndexOf("]") + 1;
+
+                    if (startIndex >= 0 && endIndex > startIndex)
                     {
-                        DataTable dt = new DataTable();
-                        adapter.Fill(dt);
-                        NewsGridView.DataSource = dt;
-                        NewsGridView.DataBind();
+                        string jsonArray = jsText.Substring(startIndex, endIndex - startIndex);
+
+                        // Deserialize to C# objects
+                        var serializer = new JavaScriptSerializer();
+                        var breakingNews = serializer.Deserialize<List<BreakingNewsItem>>(jsonArray);
+
+                        // Bind to Repeater
+                        BreakingNewsRepeater.DataSource = breakingNews;
+                        BreakingNewsRepeater.DataBind();
+
+                        BreakingNewsCount.Text = $"🛑 Breaking News Count: {breakingNews.Count}";
+                    }
+                    else
+                    {
+                        BreakingNewsCount.Text = "⚠️ Invalid breaking news format.";
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                BreakingNewsCount.Text = "❌ Failed to load breaking news.";
+                // Optionally log: System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
         }
+
+        // Model class representing each breaking news item
+        public class BreakingNewsItem
+        {
+            public string title { get; set; }
+            public string type { get; set; }
+            public string link { get; set; }
+        }
+
+        // You can add more server-side methods like FetchNewsButton_Click here
     }
 }
