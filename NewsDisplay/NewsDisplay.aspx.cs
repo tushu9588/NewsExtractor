@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Linq;
 using MySql.Data.MySqlClient;
 
 namespace NewsDisplay
@@ -10,38 +11,36 @@ namespace NewsDisplay
         {
             if (!IsPostBack)
             {
-                // Optional: Set default dates (e.g., today and yesterday)
-                StartDateTextBox.Text = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
-                EndDateTextBox.Text = DateTime.Today.ToString("yyyy-MM-dd");
+                // Set default to today's date
+                string today = DateTime.Today.ToString("yyyy-MM-dd");
+                StartDateTextBox.Text = today;
+                EndDateTextBox.Text = today;
 
-                LoadNewsFromDatabase(DateTime.Today.AddDays(-1), DateTime.Today);
+                LoadNewsFromDatabase(DateTime.Today, DateTime.Today, string.Empty);
             }
         }
 
         protected void FetchNewsButton_Click(object sender, EventArgs e)
         {
-            // Parse dates from user input
             if (DateTime.TryParse(StartDateTextBox.Text, out DateTime startDate) &&
                 DateTime.TryParse(EndDateTextBox.Text, out DateTime endDate))
             {
-                // Ensure endDate includes the full day
+                string keyword = SearchTextBox.Text.Trim();
+                // Include full end date range
                 endDate = endDate.AddDays(1).AddSeconds(-1);
 
-                LoadNewsFromDatabase(startDate, endDate);
-            }
-            else
-            {
-                // Handle invalid dates
-                NewsGridView.DataSource = null;
-                NewsGridView.DataBind();
-                // Optional: Show an error message (e.g., via Label)
+                LoadNewsFromDatabase(startDate, endDate, keyword);
             }
         }
 
-        private void LoadNewsFromDatabase(DateTime startDate, DateTime endDate)
+        private void LoadNewsFromDatabase(DateTime startDate, DateTime endDate, string keyword)
         {
             string connStr = "server=n1nlmysql45plsk.secureserver.net;uid=tushar_TempDB;pwd=tushar_TempDB;database=tushar_TempDB;";
-            string query = "SELECT Title, Url, PublicationDate FROM News WHERE PublicationDate BETWEEN @startDate AND @endDate ORDER BY PublicationDate DESC";
+            string query = @"SELECT DISTINCT Title, Url, PublicationDate
+                             FROM News 
+                             WHERE PublicationDate BETWEEN @startDate AND @endDate
+                             AND (@keyword = '' OR Title LIKE CONCAT('%', @keyword, '%') OR Url LIKE CONCAT('%', @keyword, '%'))
+                             ORDER BY PublicationDate DESC";
 
             using (MySqlConnection conn = new MySqlConnection(connStr))
             {
@@ -49,6 +48,7 @@ namespace NewsDisplay
                 {
                     cmd.Parameters.AddWithValue("@startDate", startDate);
                     cmd.Parameters.AddWithValue("@endDate", endDate);
+                    cmd.Parameters.AddWithValue("@keyword", keyword);
 
                     using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
                     {
