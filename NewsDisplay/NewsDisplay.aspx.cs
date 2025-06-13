@@ -1,72 +1,59 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Web.Script.Serialization;
+using System.Configuration;
+using System.Data;
+using MySql.Data.MySqlClient;
 
 namespace NewsDisplay
 {
     public partial class NewsDisplay : System.Web.UI.Page
     {
-        protected override void OnLoad(EventArgs e)
+        protected void Page_Load(object sender, EventArgs e)
         {
-            base.OnLoad(e);
-
             if (!IsPostBack)
             {
-                // Fire and forget async call for breaking news
-                _ = LoadBreakingNews();
+                LoadBreakingNews();
+                LoadRegularNews();
             }
         }
 
-        private async Task LoadBreakingNews()
+        private void LoadBreakingNews()
         {
-            try
+            string connStr = ConfigurationManager.ConnectionStrings["MyDbConnection"].ConnectionString;
+
+            using (var conn = new MySqlConnection(connStr))
             {
-                using (var httpClient = new HttpClient())
+                conn.Open();
+                string query = "SELECT Title, Link, InsertedAt FROM BreakingNews ORDER BY InsertedAt DESC";
+
+                using (var cmd = new MySqlCommand(query, conn))
+                using (var adapter = new MySqlDataAdapter(cmd))
                 {
-                    // Fetch JS-wrapped JSON string
-                    string jsText = await httpClient.GetStringAsync("https://economictimes.indiatimes.com/etstatic/breakingnews/etjson_bnews.html");
-
-                    // Extract JSON array from JS code
-                    int startIndex = jsText.IndexOf("[");
-                    int endIndex = jsText.LastIndexOf("]") + 1;
-
-                    if (startIndex >= 0 && endIndex > startIndex)
-                    {
-                        string jsonArray = jsText.Substring(startIndex, endIndex - startIndex);
-
-                        // Deserialize to C# objects
-                        var serializer = new JavaScriptSerializer();
-                        var breakingNews = serializer.Deserialize<List<BreakingNewsItem>>(jsonArray);
-
-                        // Bind to Repeater
-                        BreakingNewsRepeater.DataSource = breakingNews;
-                        BreakingNewsRepeater.DataBind();
-
-                        BreakingNewsCount.Text = $"🛑 Breaking News Count: {breakingNews.Count}";
-                    }
-                    else
-                    {
-                        BreakingNewsCount.Text = "⚠️ Invalid breaking news format.";
-                    }
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+                    BreakingNewsGrid.DataSource = dt;
+                    BreakingNewsGrid.DataBind();
                 }
             }
-            catch (Exception ex)
+        }
+
+        private void LoadRegularNews()
+        {
+            string connStr = ConfigurationManager.ConnectionStrings["MyDbConnection"].ConnectionString;
+
+            using (var conn = new MySqlConnection(connStr))
             {
-                BreakingNewsCount.Text = "❌ Failed to load breaking news.";
-                // Optionally log: System.Diagnostics.Debug.WriteLine(ex.Message);
+                conn.Open();
+                string query = "SELECT Title, Url, PublicationDate FROM News ORDER BY PublicationDate DESC";
+
+                using (var cmd = new MySqlCommand(query, conn))
+                using (var adapter = new MySqlDataAdapter(cmd))
+                {
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+                    NewsGrid.DataSource = dt;
+                    NewsGrid.DataBind();
+                }
             }
         }
-
-        // Model class representing each breaking news item
-        public class BreakingNewsItem
-        {
-            public string title { get; set; }
-            public string type { get; set; }
-            public string link { get; set; }
-        }
-
-        // You can add more server-side methods like FetchNewsButton_Click here
     }
 }

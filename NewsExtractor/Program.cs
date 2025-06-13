@@ -1,50 +1,61 @@
-﻿using NewsExtractor;
-using System;
-using System.Collections.Generic;
+﻿using EconomicTimesNews;
+using NewsExtractor;
 using System.Configuration;
-using System.Threading.Tasks;
 
-namespace EconomicTimesNews
+class Program
 {
-    class Program
+    static async Task Main(string[] args)
     {
-        static async Task Main(string[] args)
+        try
         {
-            try
+            // 🔴 1. Fetch Breaking News
+            Console.WriteLine("🔴 Fetching Breaking News...");
+            var breakingNews = await BreakingNewsFetcher.GetBreakingNewsAsync();
+
+            foreach (var news in breakingNews)
             {
-                Console.WriteLine("🔄 Fetching today’s news...");
-                var todayNews = await NewsFetcher.GetNewsItemsAsync("https://m.economictimes.com/sitemap/today");
+                Console.WriteLine($"📰 {news.title}");
+                Console.WriteLine($"🔗 {news.link}\n");
+            }
 
-                Console.WriteLine("🔄 Fetching yesterday’s news...");
-                var yesterdayNews = await NewsFetcher.GetNewsItemsAsync("https://m.economictimes.com/sitemap/yesterday");
-
-                // Combine both today's and yesterday's news
-                var allNews = new List<NewsItem>();
-                allNews.AddRange(todayNews);
-                allNews.AddRange(yesterdayNews);
-
-                Console.WriteLine($"\n📋 Total News Fetched: {allNews.Count}\n");
-
-                if (allNews.Count == 0)
-                {
-                    Console.WriteLine("⚠️ No news to save.");
-                    return;
-                }
-
-                // Read connection string from App.config
+            if (breakingNews.Count > 0)
+            {
                 string connStr = ConfigurationManager.ConnectionStrings["MyDbConnection"].ConnectionString;
+                var breakingNewsSaver = new BreakingNewsDatabaseSaver(connStr);
+                breakingNewsSaver.SaveBreakingNewsToDatabase(breakingNews);
+                Console.WriteLine("✅ Breaking news saved to database.");
+            }
 
-                // Save news to the database
+            // 📰 2. Fetch Sitemap News
+            Console.WriteLine("🔄 Fetching today’s news...");
+            var todayNews = await NewsFetcher.GetNewsItemsAsync("https://m.economictimes.com/sitemap/today");
+
+            Console.WriteLine("🔄 Fetching yesterday’s news...");
+            var yesterdayNews = await NewsFetcher.GetNewsItemsAsync("https://m.economictimes.com/sitemap/yesterday");
+
+            var allNews = new List<NewsItem>();
+            allNews.AddRange(todayNews);
+            allNews.AddRange(yesterdayNews);
+
+            Console.WriteLine($"\n📋 Total News Fetched: {allNews.Count}\n");
+
+            if (allNews.Count > 0)
+            {
+                string connStr = ConfigurationManager.ConnectionStrings["MyDbConnection"].ConnectionString;
                 var dbSaver = new NewsDatabaseSaver(connStr);
                 dbSaver.SaveNewsToDatabase(allNews);
 
                 Console.WriteLine("\n✅ News saved to MySQL database successfully.");
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine("\n❌ An unexpected error occurred:");
-                Console.WriteLine(ex.Message);
+                Console.WriteLine("⚠️ No sitemap news to save.");
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("\n❌ An unexpected error occurred:");
+            Console.WriteLine(ex.Message);
         }
     }
 }
