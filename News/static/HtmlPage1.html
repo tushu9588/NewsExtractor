@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>News Search - Breaking & Regular</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+</head>
+<body class="bg-light">
+
+    <div class="container py-5">
+        <h2 class="text-center animate__animated animate__fadeInDown mb-4">🗞️ News Search</h2>
+
+        <!-- Search Form -->
+        <form id="newsForm" class="row g-3 animate__animated animate__fadeIn">
+            <div class="col-md-3">
+                <label class="form-label">Start Date</label>
+                <input type="date" id="startDate" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">End Date</label>
+                <input type="date" id="endDate" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Search Title</label>
+                <input type="text" id="title" class="form-control" placeholder="Keyword">
+            </div>
+            <div class="col-md-2 d-grid">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+
+        <hr class="my-4">
+
+        <!-- Breaking News Section -->
+        <div id="breakingNewsSection" class="mb-5">
+            <h4 class="mb-3 text-danger">🔥 Breaking News</h4>
+            <div class="row" id="breakingNewsResults"></div>
+        </div>
+
+        <!-- Regular News Section -->
+        <div id="regularNewsSection">
+            <h4 class="mb-3 text-secondary">📢 Regular News</h4>
+            <div class="row" id="regularNewsResults"></div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.getElementById("newsForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const start = document.getElementById("startDate").value;
+            const end = document.getElementById("endDate").value;
+            const title = document.getElementById("title").value;
+
+            if (!start || !end) {
+                alert("Please select both Start and End Dates.");
+                return;
+            }
+
+            // Load Breaking News
+            fetch(`/api/news/searchbreakingnews?startDate=${start}&endDate=${end}&title=${encodeURIComponent(title)}`)
+                .then(res => res.ok ? res.json() : [])
+                .then(data => renderNews(data, "breakingNewsResults", "danger"))
+                .catch(() => showError("breakingNewsResults"));
+
+            // Load Regular News
+            fetch(`/api/news/searchregularnews?startDate=${start}&endDate=${end}&title=${encodeURIComponent(title)}`)
+                .then(res => res.ok ? res.json() : [])
+                .then(data => renderNews(data, "regularNewsResults", "secondary"))
+                .catch(() => showError("regularNewsResults"));
+        });
+
+        function renderNews(news, targetId, color) {
+            const container = document.getElementById(targetId);
+            container.innerHTML = "";
+
+            if (news.length === 0) {
+                container.innerHTML = `<div class="col-12"><div class="alert alert-warning text-center">No news found.</div></div>`;
+                return;
+            }
+
+            news.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "col-md-6 col-lg-4 mb-4 animate__animated animate__fadeInUp";
+                card.innerHTML = `
+            <div class="card border-${color} shadow-sm h-100">
+              <div class="card-body">
+                <h5 class="card-title">${item.Title}</h5>
+                <p class="card-text"><small class="text-muted">${new Date(item.InsertedAt).toLocaleString()}</small></p>
+                <a href="${item.Link}" target="_blank" class="btn btn-outline-${color} btn-sm">Read More</a>
+              </div>
+            </div>
+          `;
+                container.appendChild(card);
+            });
+        }
+
+        function showError(targetId) {
+            document.getElementById(targetId).innerHTML = `<div class="col-12"><div class="alert alert-danger">Error loading data. Please try again.</div></div>`;
+        }
+
+        // Auto-fill today’s date
+        const today = new Date().toISOString().split("T")[0];
+        document.getElementById("startDate").value = today;
+        document.getElementById("endDate").value = today;
+    </script>
+
+</body>
+</html>

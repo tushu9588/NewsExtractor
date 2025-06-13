@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewsExtractor", "NewsExtrac
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewsDisplay", "NewsDisplay\NewsDisplay.csproj", "{0C97B2A1-8DA6-400C-AF5C-96E90D0FB709}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "News", "News\News.csproj", "{099EEE18-ACAE-46BF-A414-510B119C242B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{0C97B2A1-8DA6-400C-AF5C-96E90D0FB709}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0C97B2A1-8DA6-400C-AF5C-96E90D0FB709}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0C97B2A1-8DA6-400C-AF5C-96E90D0FB709}.Release|Any CPU.Build.0 = Release|Any CPU
+		{099EEE18-ACAE-46BF-A414-510B119C242B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{099EEE18-ACAE-46BF-A414-510B119C242B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{099EEE18-ACAE-46BF-A414-510B119C242B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{099EEE18-ACAE-46BF-A414-510B119C242B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
